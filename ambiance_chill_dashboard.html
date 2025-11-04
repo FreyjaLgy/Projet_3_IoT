@@ -1,0 +1,250 @@
+
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maison Ambiance Chill — Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --primary: #6366f1;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    html, body { height:100%; }
+    body {
+      margin:0; background: radial-gradient(1200px 900px at 10% -10%, #1e293b 0%, #0b1020 60%, #070b15 100%);
+      color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    .container { max-width:1100px; margin:32px auto; padding: 0 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 18px; }
+    h1 { font-weight:700; letter-spacing:.3px; margin:0; font-size: clamp(20px, 3vw, 28px); }
+    .subtitle { color:var(--muted); font-size:14px; }
+    .grid {
+      display:grid; gap:16px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius); padding:18px; box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+    .card h2 { margin:0 0 12px; font-size:18px; letter-spacing:.2px; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .row + .row { margin-top:10px; }
+    .pill { padding:6px 10px; border-radius:999px; font-size:12px; letter-spacing:.3px; border:1px solid rgba(255,255,255,0.1); color:var(--muted); }
+    .ok { color:#10b981; border-color:#10b98144; background:#10b9810e;}
+    .warn { color:var(--warn); border-color:#f59e0b44; background:#f59e0b0e;}
+    .bad { color:var(--danger); border-color:#ef444444; background:#ef44440e;}
+    .btn {
+      appearance:none; border:1px solid rgba(255,255,255,0.12); color:var(--text); background:#1f2937; 
+      padding:8px 12px; border-radius:10px; font-weight:600; cursor:pointer; transition:.15s ease transform, .15s ease background, .15s ease border-color;
+    }
+    .btn:hover { transform: translateY(-1px); background:#283548; }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { background: linear-gradient(180deg, #4856ff, #3a47d6); border-color:#3847ff; }
+    .btn.primary:hover { background: linear-gradient(180deg, #5663ff, #4956e6); }
+    .btn.ghost { background: transparent; }
+    .btn.small { padding:6px 10px; font-size: 13px; }
+    .btn-group { display:flex; gap:8px; flex-wrap: wrap; }
+    .value { font-variant-numeric: tabular-nums; font-weight:700; }
+    input[type="range"] { width:100%; }
+    .muted { color:var(--muted); font-size:12px; }
+    footer { margin-top:18px; color:var(--muted); font-size:12px; text-align:center; }
+    .err { color:#fecaca; font-size:12px; white-space: pre-wrap; }
+    code.small { font-size: 12px; background: rgba(255,255,255,.06); padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Maison Ambiance Chill — Dashboard</h1>
+        <div class="subtitle">Contrôle & visu en direct — Motion → LEDs & Speaker (volets exclus)</div>
+      </div>
+      <div class="pill" id="statusPill">init…</div>
+    </header>
+
+    <div class="grid">
+      <div class="card" id="timeCard">
+        <h2>⏰ Heure simulée</h2>
+        <div class="row">
+          <div>Maintenant: <span class="value" id="nowVal">--:--</span></div>
+          <div class="pill" id="quietPill">quiet?</div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <div class="btn-group">
+            <button class="btn small" onclick="setTime('15:00')">15:00 (jour)</button>
+            <button class="btn small" onclick="setTime('20:15')">20:15 (après 19h)</button>
+            <button class="btn small" onclick="setTime('23:00')">23:00 (quiet)</button>
+            <button class="btn small ghost" onclick="setTime('')">Revenir à l'heure réelle</button>
+          </div>
+        </div>
+        <div class="muted" style="margin-top:8px;">Le gateway utilise <code class="small">/debug/setTime?hhmm=HH:MM</code>.</div>
+        <div class="err" id="timeErr"></div>
+      </div>
+
+      <div class="card" id="motionCard">
+        <h2>🧍 Mouvement</h2>
+        <div class="row">
+          <div>Dernier événement: <span class="value" id="motionAgo">—</span></div>
+          <button class="btn primary" onclick="simulateMotion()">Simuler un mouvement</button>
+        </div>
+        <div class="muted">Appelle <code class="small">POST /actions/simulate</code> sur <code class="small">thing-motion</code>.</div>
+        <div class="err" id="motionErr"></div>
+      </div>
+
+      <div class="card" id="ledsCard">
+        <h2>💡 LEDs</h2>
+        <div class="row"><div>État:</div><div class="pill" id="ledsOn">—</div></div>
+        <div class="row"><div>Intensité:</div><div class="value" id="ledsBri">—</div></div>
+        <div style="margin-top:10px;">
+          <input type="range" id="briSlider" min="0" max="100" value="0" oninput="briVal.textContent=this.value" />
+          <div class="row">
+            <span class="muted">Régler à: <span id="briVal">0</span>%</span>
+            <div class="btn-group">
+              <button class="btn small" onclick="setBrightness()">Appliquer</button>
+              <button class="btn small" onclick="ledOn()">Allumer</button>
+              <button class="btn small" onclick="ledOff()">Éteindre</button>
+            </div>
+          </div>
+        </div>
+        <div class="err" id="ledsErr"></div>
+      </div>
+
+      <div class="card" id="speakerCard">
+        <h2>🔊 Enceinte</h2>
+        <div class="row"><div>Lecture:</div><div class="pill" id="spkPlay">—</div></div>
+        <div class="row"><div>Volume:</div><div class="value" id="spkVol">—</div></div>
+        <div style="margin-top:10px;">
+          <input type="range" id="volSlider" min="0" max="100" value="25" oninput="volVal.textContent=this.value" />
+          <div class="row">
+            <span class="muted">Régler à: <span id="volVal">25</span>%</span>
+            <div class="btn-group">
+              <button class="btn small" onclick="setVolume()">Appliquer</button>
+              <button class="btn small" onclick="play()">Lecture "Chill"</button>
+              <button class="btn small" onclick="pause()">Pause</button>
+            </div>
+          </div>
+        </div>
+        <div class="err" id="spkErr"></div>
+      </div>
+    </div>
+
+    <footer>Endpoints attendus: gateway :8080, motion :8081, leds :8082, speaker :8083. — Rafraîchissement auto toutes 2s.</footer>
+  </div>
+
+<script>
+const GATEWAY = "http://localhost:8080";
+const MOTION = "http://localhost:8081";
+const LEDS   = "http://localhost:8082";
+const SPK    = "http://localhost:8083";
+
+const $ = (id)=>document.getElementById(id);
+
+async function jget(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+async function jpost(url, bodyObj) {
+  const init = bodyObj===undefined ? {} : {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(bodyObj)
+  };
+  const r = await fetch(url, init);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json().catch(()=> ({}));
+}
+
+function setPill(el, ok, labels={ok:"ON", ko:"OFF"}) {
+  el.textContent = ok ? labels.ok : labels.ko;
+  el.className = "pill " + (ok ? "ok" : "bad");
+}
+
+async function refresh() {
+  // time
+  try {
+    const t = await jget(`${GATEWAY}/debug/time`);
+    $("nowVal").textContent = t.now ?? "—";
+    setPill($("quietPill"), !!t.inQuietHours, {ok:"Quiet hours", ko:"Normal"});
+    $("timeErr").textContent = "";
+  } catch (e) { $("timeErr").textContent = e.message; }
+
+  // leds
+  try {
+    const p = await jget(`${LEDS}/properties`);
+    setPill($("ledsOn"), !!p.on);
+    $("ledsBri").textContent = (p.brightness ?? "—") + "%";
+    $("briSlider").value = p.brightness ?? 0;
+    $("briVal").textContent = p.brightness ?? 0;
+    $("ledsErr").textContent = "";
+  } catch (e) { $("ledsErr").textContent = e.message; }
+
+  // speaker
+  try {
+    const p = await jget(`${SPK}/properties`);
+    setPill($("spkPlay"), !!p.playing, {ok:"En lecture", ko:"En pause"});
+    $("spkVol").textContent = (p.volume ?? "—") + "%";
+    $("volSlider").value = p.volume ?? 25;
+    $("volVal").textContent = p.volume ?? 25;
+    $("spkErr").textContent = "";
+  } catch (e) { $("spkErr").textContent = e.message; }
+
+  // status
+  const ok = $("timeErr").textContent==="" && $("ledsErr").textContent==="" && $("spkErr").textContent==="";
+  setPill($("statusPill"), ok, {ok:"OK", ko:"Erreur"});
+}
+
+async function setTime(hhmm) {
+  try {
+    const q = hhmm ? `?hhmm=${encodeURIComponent(hhmm)}` : "?hhmm=";
+    await jpost(`${GATEWAY}/debug/setTime${q}`);
+    await refresh();
+  } catch (e) { $("timeErr").textContent = e.message; }
+}
+
+async function simulateMotion() {
+  try { await jpost(`${MOTION}/actions/simulate`); await refresh(); }
+  catch (e) { $("motionErr").textContent = e.message; }
+}
+
+async function setBrightness() {
+  try {
+    const v = parseInt($("briSlider").value, 10);
+    await jpost(`${LEDS}/actions/setBrightness`, {value:v});
+    await refresh();
+  } catch (e) { $("ledsErr").textContent = e.message; }
+}
+async function ledOn()  { try { await jpost(`${LEDS}/actions/turnOn`); await refresh(); } catch (e) { $("ledsErr").textContent = e.message; } }
+async function ledOff() { try { await jpost(`${LEDS}/actions/turnOff`); await refresh(); } catch (e) { $("ledsErr").textContent = e.message; } }
+
+async function setVolume() {
+  try {
+    const v = parseInt($("volSlider").value, 10);
+    await jpost(`${SPK}/actions/setVolume`, {value:v});
+    await refresh();
+  } catch (e) { $("spkErr").textContent = e.message; }
+}
+async function play() {
+  try { await jpost(`${SPK}/actions/play`, {playlist:"Chill"}); await refresh(); }
+  catch (e) { $("spkErr").textContent = e.message; }
+}
+async function pause() {
+  try { await jpost(`${SPK}/actions/pause`); await refresh(); }
+  catch (e) { $("spkErr").textContent = e.message; }
+}
+
+setInterval(refresh, 2000);
+refresh();
+</script>
+</body>
+</html>
