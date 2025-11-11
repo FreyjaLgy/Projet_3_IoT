@@ -31,6 +31,9 @@ public class HooksController {
   @Value("${speaker.baseUrl:}")
   private String speakerBaseUrl;
 
+  //@Value("${shutter.baseUrl:http://localhost:8084}")
+  //private String shutterBaseUrl;
+
   public HooksController(TimeHelpers time, MotionService motion) {
     this.time = time; this.motion = motion;
   }
@@ -59,6 +62,9 @@ public class HooksController {
       } else {
         out.put("speaker.action", "none");
       }
+
+      //Volets
+      //post(shutterBaseUrl + "/action/getStatus");
 
       out.put("status", "MOTION_RULES_APPLIED");
       return ResponseEntity.ok(out);
