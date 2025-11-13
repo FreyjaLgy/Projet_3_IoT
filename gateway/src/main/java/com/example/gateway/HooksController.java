@@ -71,9 +71,6 @@ public class HooksController {
         out.put("speaker.action", "none");
       }
 
-      //Volets
-      //post(shutterBaseUrl + "/action/getStatus");
-
       out.put("status", "MOTION_RULES_APPLIED");
       return ResponseEntity.ok(out);
 
