@@ -1,4 +1,4 @@
-package com.example.thing_shutter.model;
+package com.example.thing_shutter;
 
 public class Shutter {
     private String name;

@@ -1,6 +1,6 @@
 package com.example.thing_shutter;
 
-import com.example.thing_shutter.model.Shutter;
+import com.example.thing_shutter.Shutter;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalTime;

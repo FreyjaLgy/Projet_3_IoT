@@ -68,7 +68,7 @@
     <header>
       <div>
         <h1>Maison Ambiance Chill — Dashboard</h1>
-        <div class="subtitle">Contrôle & visu en direct — Motion → LEDs & Speaker (volets exclus)</div>
+        <div class="subtitle">Contrôle & visu en direct — Motion → LEDs & Speaker + Volets automatiques</div>
       </div>
       <div class="pill" id="statusPill">init…</div>
     </header>
@@ -97,6 +97,9 @@
         <div class="row">
           <div>Dernier événement: <span class="value" id="motionAgo">—</span></div>
           <button class="btn primary" onclick="simulateMotion()">Simuler un mouvement</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <div class="muted">Dernière détection: <span class="value" id="motionTime">—</span></div>
         </div>
         <div class="muted">Appelle <code class="small">POST /actions/simulate</code> sur <code class="small">thing-motion</code>.</div>
         <div class="err" id="motionErr"></div>
@@ -137,9 +140,34 @@
         </div>
         <div class="err" id="spkErr"></div>
       </div>
+
+      <div class="card" id="shutterCard">
+        <h2>🪟 Volets</h2>
+        <div class="row"><div>État général:</div><div class="pill" id="shutterStatus">—</div></div>
+        <div id="shutterList" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+        <div class="row" style="margin-top:12px;">
+          <div class="btn-group">
+            <button class="btn small" onclick="openAllShutters()">Tout ouvrir</button>
+            <button class="btn small" onclick="closeAllShutters()">Tout fermer</button>
+          </div>
+        </div>
+        <div class="muted" style="margin-top:8px;">Fermeture auto après 19h. Port: <code class="small">:8084</code></div>
+        <div class="err" id="shutterErr"></div>
+      </div>
     </div>
 
-    <footer>Endpoints attendus: gateway :8080, motion :8081, leds :8082, speaker :8083. — Rafraîchissement auto toutes 2s.</footer>
+    <div class="card" style="margin-top:16px; background: rgba(99, 102, 241, 0.05); border-color: rgba(99, 102, 241, 0.3);">
+      <h2>📋 Règles du scénario</h2>
+      <ul style="margin:8px 0; padding-left:20px; line-height:1.7; color: var(--muted); font-size:14px;">
+        <li><strong style="color: var(--text);">Mouvement détecté</strong>: Lumière s'allume + playlist se lance <em>(sauf après 19h → pas de musique)</em></li>
+        <li><strong style="color: var(--text);">Après 19h</strong>: Volets se ferment automatiquement</li>
+        <li><strong style="color: var(--text);">Quiet hours (22h-6h)</strong>: Volume max 15% + intensité LED réduite (20% max) si mouvement</li>
+        <li><strong style="color: var(--text);">Après minuit</strong>: Si pas de mouvement pendant 15 min → extinction lumière</li>
+        <li><strong style="color: var(--text);">Manual override</strong>: Tous les contrôles manuels disponibles</li>
+      </ul>
+    </div>
+
+    <footer>Endpoints attendus: gateway :8080, motion :8081, leds :8082, speaker :8083, shutter :8084. — Rafraîchissement auto toutes 2s.</footer>
   </div>
 
 <script>
@@ -147,8 +175,11 @@ const GATEWAY = "http://localhost:8080";
 const MOTION = "http://localhost:8081";
 const LEDS   = "http://localhost:8082";
 const SPK    = "http://localhost:8083";
+const SHUTTER = "http://localhost:8084";
 
 const $ = (id)=>document.getElementById(id);
+
+let lastMotionTimestamp = null;
 
 async function jget(url) {
   const r = await fetch(url);
@@ -156,7 +187,7 @@ async function jget(url) {
   return r.json();
 }
 async function jpost(url, bodyObj) {
-  const init = bodyObj===undefined ? {} : {
+  const init = bodyObj===undefined ? { method: "POST" } : {
     method: "POST", headers: {"Content-Type":"application/json"},
     body: JSON.stringify(bodyObj)
   };
@@ -170,6 +201,14 @@ function setPill(el, ok, labels={ok:"ON", ko:"OFF"}) {
   el.className = "pill " + (ok ? "ok" : "bad");
 }
 
+function formatTimeSince(timestamp) {
+  if (!timestamp) return "—";
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}min ${seconds % 60}s`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}min`;
+}
+
 async function refresh() {
   // time
   try {
@@ -178,6 +217,12 @@ async function refresh() {
     setPill($("quietPill"), !!t.inQuietHours, {ok:"Quiet hours", ko:"Normal"});
     $("timeErr").textContent = "";
   } catch (e) { $("timeErr").textContent = e.message; }
+
+  // motion timing
+  if (lastMotionTimestamp) {
+    $("motionAgo").textContent = formatTimeSince(lastMotionTimestamp);
+    $("motionTime").textContent = new Date(lastMotionTimestamp).toLocaleTimeString();
+  }
 
   // leds
   try {
@@ -199,8 +244,37 @@ async function refresh() {
     $("spkErr").textContent = "";
   } catch (e) { $("spkErr").textContent = e.message; }
 
+  // shutters
+  try {
+    const shutters = await jpost(`${SHUTTER}/action/getStatus`);
+    const allOpen = shutters.every(s => s.open);
+    const allClosed = shutters.every(s => !s.open);
+    if (allOpen) {
+      setPill($("shutterStatus"), true, {ok:"Tous ouverts", ko:"—"});
+    } else if (allClosed) {
+      setPill($("shutterStatus"), false, {ok:"—", ko:"Tous fermés"});
+    } else {
+      $("shutterStatus").textContent = "Mixte";
+      $("shutterStatus").className = "pill warn";
+    }
+    
+    // Display individual shutters
+    const listHtml = shutters.map(s => 
+      `<div class="row" style="font-size:13px; padding:4px 0;">
+        <span>${s.name}:</span>
+        <span class="pill ${s.open ? 'ok' : 'bad'}" style="padding:3px 8px; font-size:11px;">
+          ${s.open ? '🔓 Ouvert' : '🔒 Fermé'}
+        </span>
+      </div>`
+    ).join('');
+    $("shutterList").innerHTML = listHtml;
+    
+    $("shutterErr").textContent = "";
+  } catch (e) { $("shutterErr").textContent = e.message; }
+
   // status
-  const ok = $("timeErr").textContent==="" && $("ledsErr").textContent==="" && $("spkErr").textContent==="";
+  const ok = $("timeErr").textContent==="" && $("ledsErr").textContent==="" && 
+             $("spkErr").textContent==="" && $("shutterErr").textContent==="";
   setPill($("statusPill"), ok, {ok:"OK", ko:"Erreur"});
 }
 
@@ -213,7 +287,11 @@ async function setTime(hhmm) {
 }
 
 async function simulateMotion() {
-  try { await jpost(`${MOTION}/actions/simulate`); await refresh(); }
+  try { 
+    await jpost(`${MOTION}/actions/simulate`); 
+    lastMotionTimestamp = Date.now();
+    await refresh(); 
+  }
   catch (e) { $("motionErr").textContent = e.message; }
 }
 
@@ -241,6 +319,20 @@ async function play() {
 async function pause() {
   try { await jpost(`${SPK}/actions/pause`); await refresh(); }
   catch (e) { $("spkErr").textContent = e.message; }
+}
+
+async function openAllShutters() {
+  try { 
+    await jpost(`${SHUTTER}/action/openall`); 
+    await refresh(); 
+  } catch (e) { $("shutterErr").textContent = e.message; }
+}
+
+async function closeAllShutters() {
+  try { 
+    await jpost(`${SHUTTER}/action/closeall`); 
+    await refresh(); 
+  } catch (e) { $("shutterErr").textContent = e.message; }
 }
 
 setInterval(refresh, 2000);
