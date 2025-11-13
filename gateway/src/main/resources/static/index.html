@@ -29,6 +29,41 @@
             border-radius: 10px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn-logout {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .btn-logout:active {
+            transform: translateY(0);
         }
         
         h1 {
@@ -209,9 +244,16 @@
 <body>
     <div class="container">
         <header>
-            <h1>Maison Ambiance Chill - Dashboard IoT</h1>
-            <p>Surveillance et contrôle en temps réel</p>
-            <span class="status-badge" id="globalStatus">Connexion...</span>
+            <div class="header-content">
+                <h1>🏠 Maison Ambiance Chill - Dashboard IoT</h1>
+                <p>Surveillance et contrôle en temps réel</p>
+                <span class="status-badge" id="globalStatus">Connexion...</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn-logout" onclick="logout()">
+                    🔓 Déconnexion
+                </button>
+            </div>
         </header>
 
         <div class="grid">
@@ -550,6 +592,13 @@
                 await refreshAll();
             } catch (error) {
                 document.getElementById('shutterError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        // Fonction de déconnexion
+        function logout() {
+            if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+                window.location.href = '/logout';
             }
         }
 

@@ -21,13 +21,26 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable()) // Pour démo - En production, activer CSRF
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/images/**").permitAll() // Dashboard public
+                .requestMatchers("/login", "/logout", "/css/**", "/js/**", "/images/**").permitAll() // Login/Logout publics
                 .requestMatchers("/hooks/**").permitAll() // Webhooks publics (pour IoT devices)
-                .requestMatchers("/api/**").authenticated() // API nécessite authentification
                 .requestMatchers("/debug/**").permitAll() // Endpoints debug publics pour démo
+                .requestMatchers("/", "/index.html").authenticated() // Dashboard protégé
+                .requestMatchers("/api/**").authenticated() // API nécessite authentification
                 .anyRequest().authenticated()
             )
-            .httpBasic(basic -> {}); // Authentification HTTP Basic
+            .formLogin(form -> form
+                .loginPage("/login")
+                .defaultSuccessUrl("/", true)
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/login?logout")
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID")
+                .permitAll()
+            )
+            .httpBasic(basic -> {}); // Authentification HTTP Basic pour API
         
         return http.build();
     }

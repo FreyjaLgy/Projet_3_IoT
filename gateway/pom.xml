@@ -54,6 +54,12 @@
 			<version>8.0.1</version>
 		</dependency>
 
+		<!-- Thymeleaf pour les templates HTML -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
