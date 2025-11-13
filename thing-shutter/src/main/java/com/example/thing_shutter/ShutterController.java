@@ -61,10 +61,9 @@ public class ShutterController {
     }
 
 
-    //** Ferme tous les volets après 19h
+    //** Ferme tous les volets après 19h au démarrage du service
     private void autoCloseIfEvening() {
-        //LocalTime now = LocalTime.now();
-        LocalTime now = LocalTime.of(20, 0);
+        LocalTime now = LocalTime.now();
         if (now.isAfter(LocalTime.of(19, 0))) {
             shutters.forEach(s -> s.setOpen(false));
         }

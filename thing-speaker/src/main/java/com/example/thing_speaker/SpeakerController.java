@@ -26,8 +26,22 @@ public class SpeakerController {
   record PlayBody(String playlist) {}
 
   @PostMapping("/actions/setVolume")
-  public ResponseEntity<?> setVolume(@RequestBody IntBody body) {
-    volume = Math.max(0, Math.min(100, body.value()));
+  public ResponseEntity<?> setVolume(
+      @RequestBody(required=false) IntBody body,
+      @RequestParam(required=false) Integer value) {
+    
+    // Support both JSON body and query parameter
+    int newVolume = 0;
+    if (body != null) {
+      newVolume = body.value();
+    } else if (value != null) {
+      newVolume = value;
+    } else {
+      // If no value provided, keep current volume
+      return ResponseEntity.ok(props());
+    }
+    
+    volume = Math.max(0, Math.min(100, newVolume));
     return ResponseEntity.ok(props());
   }
 

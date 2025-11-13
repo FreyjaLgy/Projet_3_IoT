@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard IoT - Ambiance Chill</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .status-ok {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status-error {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .label {
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .value {
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-success {
+            background: #10b981;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .rules {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .rules h2 {
+            color: #856404;
+            border-bottom-color: #ffc107;
+        }
+        
+        .rules ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .rules li {
+            margin: 8px 0;
+            color: #856404;
+        }
+        
+        .error-msg {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .shutter-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        
+        .shutter-status {
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .shutter-open {
+            background: #10b981;
+            color: white;
+        }
+        
+        .shutter-closed {
+            background: #ef4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Maison Ambiance Chill - Dashboard IoT</h1>
+            <p>Surveillance et contrôle en temps réel</p>
+            <span class="status-badge" id="globalStatus">Connexion...</span>
+        </header>
+
+        <div class="grid">
+            <!-- Carte Temps -->
+            <div class="card">
+                <h2>Heure Système</h2>
+                <div class="info-row">
+                    <span class="label">Heure actuelle:</span>
+                    <span class="value" id="currentTime">--:--</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Mode:</span>
+                    <span class="value" id="timeMode">Normal</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Quiet Hours:</span>
+                    <span class="value" id="quietHours">Non</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn" onclick="setTime('15:00')">☀️ 15:00</button>
+                    <button class="btn" onclick="setTime('20:00')">🌆 20:00</button>
+                    <button class="btn" onclick="setTime('23:00')">🌙 23:00</button>
+                    <button class="btn btn-danger" onclick="setTime('')">Reset</button>
+                </div>
+                <div class="error-msg" id="timeError"></div>
+            </div>
+
+            <!-- Carte Motion -->
+            <div class="card">
+                <h2>Détecteur de Mouvement</h2>
+                <div class="info-row">
+                    <span class="label">Status:</span>
+                    <span class="value" id="motionStatus">En attente...</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Dernière détection:</span>
+                    <span class="value" id="motionLast">Aucune</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="simulateMotion()">👋 Simuler Mouvement</button>
+                </div>
+                <div class="error-msg" id="motionError"></div>
+            </div>
+
+            <!-- Carte LEDs -->
+            <div class="card">
+                <h2>Éclairage LED</h2>
+                <div class="info-row">
+                    <span class="label">État:</span>
+                    <span class="value" id="ledState">OFF</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Intensité:</span>
+                    <span class="value" id="ledBrightness">0%</span>
+                </div>
+                <div class="slider-container">
+                    <label>Régler l'intensité: <span id="ledSliderVal">50</span>%</label>
+                    <input type="range" id="ledSlider" min="0" max="100" value="50" 
+                           oninput="document.getElementById('ledSliderVal').textContent = this.value">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="ledOn()">🔆 Allumer</button>
+                    <button class="btn btn-danger" onclick="ledOff()">🔅 Éteindre</button>
+                    <button class="btn" onclick="ledSetBrightness()">✨ Appliquer</button>
+                </div>
+                <div class="error-msg" id="ledError"></div>
+            </div>
+
+            <!-- Carte Speaker -->
+            <div class="card">
+                <h2>Enceinte</h2>
+                <div class="info-row">
+                    <span class="label">Lecture:</span>
+                    <span class="value" id="speakerPlaying">Pause</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Volume:</span>
+                    <span class="value" id="speakerVolume">0%</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Playlist:</span>
+                    <span class="value" id="speakerPlaylist">Aucune</span>
+                </div>
+                <div class="slider-container">
+                    <label>Régler le volume: <span id="volSliderVal">30</span>%</label>
+                    <input type="range" id="volSlider" min="0" max="100" value="30" 
+                           oninput="document.getElementById('volSliderVal').textContent = this.value">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="speakerPlay()">Play</button>
+                    <button class="btn btn-danger" onclick="speakerPause()">Pause</button>
+                    <button class="btn" onclick="speakerSetVolume()">🔉 Volume</button>
+                </div>
+                <div class="error-msg" id="speakerError"></div>
+            </div>
+
+            <!-- Carte Volets -->
+            <div class="card">
+                <h2>Volets Connectés</h2>
+                <div id="shutterList">Chargement...</div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="shutterOpenAll()">Tout Ouvrir</button>
+                    <button class="btn btn-danger" onclick="shutterCloseAll()">Tout Fermer</button>
+                </div>
+                <div class="error-msg" id="shutterError"></div>
+            </div>
+        </div>
+
+        <!-- Règles du scénario -->
+        <div class="card rules">
+            <h2>Règles du Scénario "Ambiance Chill"</h2>
+            <ul>
+                <li><strong>Mouvement détecté:</strong> Lumière ON + Playlist lancée (sauf après 19h → pas de musique)</li>
+                <li><strong>Après 19h:</strong> Volets fermés automatiquement</li>
+                <li><strong>Quiet Hours (22h-6h):</strong> Volume max 15% + LED max 20% si mouvement</li>
+                <li><strong>Après minuit:</strong> Pas de mouvement 15 min → Extinction lumière</li>
+                <li><strong>Manual Override:</strong> Tous les contrôles manuels disponibles ici</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Configuration des endpoints
+        const API = {
+            gateway: 'http://localhost:8080',
+            motion: 'http://localhost:8081',
+            leds: 'http://localhost:8082',
+            speaker: 'http://localhost:8083',
+            shutter: 'http://localhost:8084'
+        };
+
+        // Fonction GET simple
+        async function apiGet(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('GET Error:', url, error);
+                throw error;
+            }
+        }
+
+        // Fonction POST simple
+        async function apiPost(url, data = null) {
+            try {
+                const options = {
+                    method: 'POST',
+                    headers: data ? {'Content-Type': 'application/json'} : {}
+                };
+                if (data) options.body = JSON.stringify(data);
+                
+                const response = await fetch(url, options);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const text = await response.text();
+                return text ? JSON.parse(text) : {};
+            } catch (error) {
+                console.error('POST Error:', url, error);
+                throw error;
+            }
+        }
+
+        // Rafraîchir tous les états
+        async function refreshAll() {
+            let errors = 0;
+
+            // Gateway / Time
+            try {
+                const time = await apiGet(`${API.gateway}/debug/time`);
+                document.getElementById('currentTime').textContent = time.now || '--:--';
+                document.getElementById('quietHours').textContent = time.inQuietHours ? 'Oui (22h-6h)' : 'Non';
+                document.getElementById('timeMode').textContent = time.now === new Date().toTimeString().slice(0,5) ? 'Réel' : 'Simulé';
+                document.getElementById('timeError').textContent = '';
+            } catch (error) {
+                document.getElementById('timeError').textContent = 'Erreur: ' + error.message;
+                errors++;
+            }
+
+            // Motion
+            try {
+                const motion = await apiGet(`${API.motion}/properties`);
+                document.getElementById('motionStatus').textContent = 'Actif';
+                document.getElementById('motionLast').textContent = motion.lastDetectedAt ? 
+                    new Date(motion.lastDetectedAt).toLocaleString() : 'Aucune';
+                document.getElementById('motionError').textContent = '';
+            } catch (error) {
+                document.getElementById('motionError').textContent = 'Erreur: ' + error.message;
+                errors++;
+            }
+
+            // LEDs
+            try {
+                const leds = await apiGet(`${API.leds}/properties`);
+                document.getElementById('ledState').textContent = leds.on ? '🟢 ON' : '🔴 OFF';
+                document.getElementById('ledBrightness').textContent = (leds.brightness || 0) + '%';
+                document.getElementById('ledSlider').value = leds.brightness || 0;
+                document.getElementById('ledSliderVal').textContent = leds.brightness || 0;
+                document.getElementById('ledError').textContent = '';
+            } catch (error) {
+                document.getElementById('ledError').textContent = 'Erreur: ' + error.message;
+                errors++;
+            }
+
+            // Speaker
+            try {
+                const speaker = await apiGet(`${API.speaker}/properties`);
+                document.getElementById('speakerPlaying').textContent = speaker.playing ? 'En lecture' : 'Pause';
+                document.getElementById('speakerVolume').textContent = (speaker.volume || 0) + '%';
+                document.getElementById('speakerPlaylist').textContent = speaker.playlist || 'Aucune';
+                document.getElementById('volSlider').value = speaker.volume || 30;
+                document.getElementById('volSliderVal').textContent = speaker.volume || 30;
+                document.getElementById('speakerError').textContent = '';
+            } catch (error) {
+                document.getElementById('speakerError').textContent = 'Erreur: ' + error.message;
+                errors++;
+            }
+
+            // Shutters
+            try {
+                const shutters = await apiPost(`${API.shutter}/action/getStatus`);
+                const html = shutters.map(s => `
+                    <div class="shutter-item">
+                        <span>${s.name}</span>
+                        <span class="shutter-status ${s.open ? 'shutter-open' : 'shutter-closed'}">
+                            ${s.open ? 'Ouvert' : 'Fermé'}
+                        </span>
+                    </div>
+                `).join('');
+                document.getElementById('shutterList').innerHTML = html;
+                document.getElementById('shutterError').textContent = '';
+            } catch (error) {
+                document.getElementById('shutterError').textContent = 'Erreur: ' + error.message;
+                document.getElementById('shutterList').innerHTML = '<div class="error-msg">Service indisponible</div>';
+                errors++;
+            }
+
+            // Status global
+            const statusBadge = document.getElementById('globalStatus');
+            if (errors === 0) {
+                statusBadge.textContent = 'Tous les services OK';
+                statusBadge.className = 'status-badge status-ok';
+            } else {
+                statusBadge.textContent = `${errors} service(s) en erreur`;
+                statusBadge.className = 'status-badge status-error';
+            }
+        }
+
+        // Fonctions de contrôle
+        async function setTime(time) {
+            try {
+                await apiPost(`${API.gateway}/debug/setTime?hhmm=${time}`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('timeError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function simulateMotion() {
+            try {
+                await apiPost(`${API.motion}/actions/simulate`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('motionError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function ledOn() {
+            try {
+                await apiPost(`${API.leds}/actions/turnOn`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('ledError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function ledOff() {
+            try {
+                await apiPost(`${API.leds}/actions/turnOff`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('ledError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function ledSetBrightness() {
+            try {
+                const value = parseInt(document.getElementById('ledSlider').value);
+                await apiPost(`${API.leds}/actions/setBrightness`, {value});
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('ledError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function speakerPlay() {
+            try {
+                await apiPost(`${API.speaker}/actions/play`, {playlist: 'Chill'});
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('speakerError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function speakerPause() {
+            try {
+                await apiPost(`${API.speaker}/actions/pause`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('speakerError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function speakerSetVolume() {
+            try {
+                const value = parseInt(document.getElementById('volSlider').value);
+                await apiPost(`${API.speaker}/actions/setVolume`, {value});
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('speakerError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function shutterOpenAll() {
+            try {
+                await apiPost(`${API.shutter}/action/openall`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('shutterError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        async function shutterCloseAll() {
+            try {
+                await apiPost(`${API.shutter}/action/closeall`);
+                await refreshAll();
+            } catch (error) {
+                document.getElementById('shutterError').textContent = 'Erreur: ' + error.message;
+            }
+        }
+
+        // Rafraîchissement automatique toutes les 2 secondes
+        setInterval(refreshAll, 2000);
+        
+        // Premier chargement
+        refreshAll();
+    </script>
+</body>
+</html>

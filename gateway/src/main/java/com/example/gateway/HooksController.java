@@ -28,7 +28,7 @@ public class HooksController {
   @Value("${leds.baseUrl:http://localhost:8082}")
   private String ledsBaseUrl;
 
-  @Value("${speaker.baseUrl:}")
+  @Value("${speaker.baseUrl:http://localhost:8083}")
   private String speakerBaseUrl;
 
   //@Value("${shutter.baseUrl:http://localhost:8084}")
@@ -54,11 +54,19 @@ public class HooksController {
       post(ledsBaseUrl + "/actions/setBrightness", jsonNum("value", targetBrightness));
       out.put("leds.brightness", targetBrightness);
 
-      // Musique : uniquement si AVANT 19:00 et hors quiet hours
-      if (!speakerBaseUrl.isBlank() && !time.inQuietHours() && time.hourLt("19:00")) {
-        post(speakerBaseUrl + "/actions/setVolume", jsonNum("value", 25));
+      // Musique : volume adapté selon l'heure
+      if (!speakerBaseUrl.isBlank()) {
+        int targetVolume;
+        if (time.inQuietHours()) {
+          targetVolume = 15; // Max 15% en heures calmes (22h-06h)
+        } else if (time.hourLt("19:00")) {
+          targetVolume = 25; // Volume normal avant 19h
+        } else {
+          targetVolume = 15; // Volume réduit après 19h
+        }
+        post(speakerBaseUrl + "/actions/setVolume", jsonNum("value", targetVolume));
         post(speakerBaseUrl + "/actions/play", "{\"playlist\":\"Chill\"}");
-        out.put("speaker.action", "play@25");
+        out.put("speaker.action", "play@" + targetVolume);
       } else {
         out.put("speaker.action", "none");
       }

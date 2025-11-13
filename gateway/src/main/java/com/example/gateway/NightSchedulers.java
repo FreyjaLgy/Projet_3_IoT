@@ -22,15 +22,18 @@ public class NightSchedulers {
   @Value("${leds.baseUrl:http://localhost:8082}")
   private String ledsBaseUrl;
 
-  @Value("${speaker.baseUrl:}")
+  @Value("${speaker.baseUrl:http://localhost:8083}")
   private String speakerBaseUrl;
+
+  @Value("${shutter.baseUrl:http://localhost:8084}")
+  private String shutterBaseUrl;
 
   public NightSchedulers(TimeHelpers time, MotionService motion) {
     this.time = time; this.motion = motion;
   }
 
-  // Toutes les 60s : cap volume à 15 en heures calmes
-  @Scheduled(fixedDelay = 60000, initialDelay = 10000)
+  // Toutes les 2s : cap volume à 15 en heures calmes
+  @Scheduled(fixedDelay = 2000, initialDelay = 10000)
   public void capSpeakerInQuietHours() {
     if (speakerBaseUrl.isBlank()) return;
     if (!time.inQuietHours()) return;
@@ -54,8 +57,8 @@ public class NightSchedulers {
     }
   }
 
-  // Toutes les 60s : après minuit, si 15 min sans mouvement -> LEDs OFF
-  @Scheduled(fixedDelay = 60000, initialDelay = 15000)
+  // Toutes les 2s : après minuit, si 15 min sans mouvement -> LEDs OFF
+  @Scheduled(fixedDelay = 2000, initialDelay = 15000)
   public void nightIdleTurnOffLeds() {
     // après minuit = >= 00:00 (toujours vrai), mais on le garde pour lisibilité
     try {
@@ -66,6 +69,52 @@ public class NightSchedulers {
       }
     } catch (Exception e) {
       log.warn("nightIdleTurnOffLeds failed: {}", e.toString());
+    }
+  }
+
+  // Toutes les 2s : après 19h00, fermer automatiquement tous les volets
+  @Scheduled(fixedDelay = 2000, initialDelay = 20000)
+  public void autoCloseShuttersAfter19h() {
+    if (shutterBaseUrl.isBlank()) return;
+    if (!time.hourGte("19:00")) return; // Seulement après 19h00
+    
+    try {
+      // Vérifier l'état des volets
+      var status = http.post().uri(shutterBaseUrl + "/action/getStatus")
+        .retrieve().body(String.class);
+      
+      // Si au moins un volet est ouvert (contains "open":true), les fermer tous
+      if (status != null && status.contains("\"open\":true")) {
+        http.post().uri(shutterBaseUrl + "/action/closeall")
+          .retrieve().toBodilessEntity();
+        log.info("Evening rule: closed all shutters after 19:00");
+      }
+    } catch (Exception e) {
+      log.warn("autoCloseShuttersAfter19h failed: {}", e.toString());
+    }
+  }
+
+  // Toutes les heures : ouvrir automatiquement tous les volets le matin à 6h00
+  @Scheduled(fixedDelay = 2000, initialDelay = 25000) // 1 heure
+  public void autoOpenShuttersAt6h() {
+    if (shutterBaseUrl.isBlank()) return;
+    
+    try {
+      var currentTime = time.getCurrentTime();
+      // Ouvrir entre 6h00 et 6h59
+      if (currentTime.startsWith("06:")) {
+        var status = http.post().uri(shutterBaseUrl + "/action/getStatus")
+          .retrieve().body(String.class);
+        
+        // Si au moins un volet est fermé, les ouvrir tous
+        if (status != null && status.contains("\"open\":false")) {
+          http.post().uri(shutterBaseUrl + "/action/openall")
+            .retrieve().toBodilessEntity();
+          log.info("Morning rule: opened all shutters at 6:00");
+        }
+      }
+    } catch (Exception e) {
+      log.warn("autoOpenShuttersAt6h failed: {}", e.toString());
     }
   }
 }
