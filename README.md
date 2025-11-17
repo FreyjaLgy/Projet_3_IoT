@@ -5,7 +5,7 @@
 ### 1. Lancer tous les services
 
 ```bash
-cd /home/paul/Master2/IOT3/Projet_3_IoT
+cd EmplacementProjet
 ./restart_all_services.sh
 ```
 
