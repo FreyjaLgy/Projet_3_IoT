@@ -474,7 +474,7 @@
 
             // Shutters
             try {
-                const shutters = await apiPost(`${API.shutter}/action/getStatus`);
+                const shutters = await apiGet(`${API.shutter}/action/getStatus`);
                 const html = shutters.map(s => `
                     <div class="shutter-item">
                         <span>${s.name}</span>

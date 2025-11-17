@@ -31,8 +31,7 @@ public class HooksController {
   @Value("${speaker.baseUrl:http://localhost:8083}")
   private String speakerBaseUrl;
 
-  //@Value("${shutter.baseUrl:http://localhost:8084}")
-  //private String shutterBaseUrl;
+
 
   public HooksController(TimeHelpers time, MotionService motion) {
     this.time = time; this.motion = motion;

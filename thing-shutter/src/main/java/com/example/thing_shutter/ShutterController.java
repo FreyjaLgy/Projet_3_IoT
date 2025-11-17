@@ -22,7 +22,7 @@ public class ShutterController {
     }
 
     // Renvoie la liste des volets avec leur état.
-    @PostMapping("/action/getStatus")
+    @GetMapping("/action/getStatus")
     public List<Shutter> getStatus() {
         return shutters;
     }

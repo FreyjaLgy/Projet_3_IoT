@@ -80,7 +80,7 @@ public class NightSchedulers {
     
     try {
       // Vérifier l'état des volets
-      var status = http.post().uri(shutterBaseUrl + "/action/getStatus")
+      var status = http.get().uri(shutterBaseUrl + "/action/getStatus")
         .retrieve().body(String.class);
       
       // Si au moins un volet est ouvert (contains "open":true), les fermer tous
@@ -95,7 +95,7 @@ public class NightSchedulers {
   }
 
   // Toutes les heures : ouvrir automatiquement tous les volets le matin à 6h00
-  @Scheduled(fixedDelay = 2000, initialDelay = 25000) // 1 heure
+  @Scheduled(fixedDelay = 2000, initialDelay = 25000)
   public void autoOpenShuttersAt6h() {
     if (shutterBaseUrl.isBlank()) return;
     
@@ -103,7 +103,7 @@ public class NightSchedulers {
       var currentTime = time.getCurrentTime();
       // Ouvrir entre 6h00 et 6h59
       if (currentTime.startsWith("06:")) {
-        var status = http.post().uri(shutterBaseUrl + "/action/getStatus")
+        var status = http.get().uri(shutterBaseUrl + "/action/getStatus")
           .retrieve().body(String.class);
         
         // Si au moins un volet est fermé, les ouvrir tous
@@ -115,6 +115,28 @@ public class NightSchedulers {
       }
     } catch (Exception e) {
       log.warn("autoOpenShuttersAt6h failed: {}", e.toString());
+    }
+  }
+
+  // Toutes les 2s : pendant la journée (avant 19h), ouvrir les volets s'ils sont fermés
+  @Scheduled(fixedDelay = 2000, initialDelay = 30000)
+  public void autoOpenShuttersDuringDay() {
+    if (shutterBaseUrl.isBlank()) return;
+    if (time.hourGte("19:00")) return; // Seulement avant 19h00
+    
+    try {
+      // Vérifier l'état des volets
+      var status = http.get().uri(shutterBaseUrl + "/action/getStatus")
+        .retrieve().body(String.class);
+      
+      // Si au moins un volet est fermé, les ouvrir tous
+      if (status != null && status.contains("\"open\":false")) {
+        http.post().uri(shutterBaseUrl + "/action/openall")
+          .retrieve().toBodilessEntity();
+        log.info("Daytime rule: opened all shutters before 19:00");
+      }
+    } catch (Exception e) {
+      log.warn("autoOpenShuttersDuringDay failed: {}", e.toString());
     }
   }
 }
